@@ -9,7 +9,7 @@
 TEST(InstrumentTests, TestJSONParsing) {
 
     // create an instrument
-    GVT::Instrument instrument = {"Name", 0, 2};
+    GVT::Instrument instrument = {"Name", "Exchange", 0, 2};
 
     // conversion: instrument -> json
     nlohmann::json j = instrument;
@@ -26,7 +26,7 @@ TEST(InstrumentStoreTests, TestPutAndGet){
 
     // create an instrument
     auto instrument = std::make_shared<GVT::Instrument>(
-            GVT::Instrument{"Name", 0, 2});
+            GVT::Instrument{"Name", "Exchange", 0, 2});
 
     // create instrument store
     GVT::InstrumentStore store;
@@ -51,11 +51,30 @@ TEST(InstrumentStoreTests, TestPutAndGet){
     }
 }
 
+TEST(InstrumentStoreTests, TestFilter){
+
+    // create instruments
+    auto instrument1 = std::make_shared<GVT::Instrument>(
+            GVT::Instrument{"Name1", "Exchange1", 0, 2});
+    auto instrument2 = std::make_shared<GVT::Instrument>(
+            GVT::Instrument{"Name2", "Exchange2", 0, 2});
+
+    // create instrument store
+    GVT::InstrumentStore store;
+    store.put(GVT::Instruments::makeName(instrument1->Name), instrument1);
+    store.put(GVT::Instruments::makeName(instrument2->Name), instrument2);
+
+    auto filtered = GVT::Instruments::filter::byExchange(store, "Exchange1");
+
+    auto inst1 = filtered->get(GVT::Instruments::makeName("Name1"));
+    ASSERT_TRUE(inst1.has_value());
+}
+
 TEST(MarketTests, TestConstruction){
 
     // create an instrument
     auto instrument = std::make_shared<GVT::Instrument>(
-            GVT::Instrument{"Name", 0, 2});
+            GVT::Instrument{"Name", "Exchange", 0, 2});
 
     // create a market
     GVT::Market market(instrument);
@@ -68,7 +87,7 @@ TEST(MarketStoreTests, TestConstruction){
 
     // create an instrument
     auto instrument = std::make_shared<GVT::Instrument>(
-            GVT::Instrument{"Name", 0, 2});
+            GVT::Instrument{"Name", "Exchange", 0, 2});
 
     // create instrument store
     GVT::InstrumentStore store;
@@ -89,7 +108,7 @@ TEST(MarketStoreTests, TestConstruction){
 
     ASSERT_EQ(instrument, market1.value()->Instrument);
     ASSERT_EQ(instrument, market2.value()->Instrument);
-    }
+}
 
 
 int main(int argc, char **argv) {
