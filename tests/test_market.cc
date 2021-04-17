@@ -61,8 +61,8 @@ TEST(InstrumentStoreTests, TestFilter){
 
     // create instrument store
     auto store = std::make_shared<GVT::InstrumentStore>();
-    store.put(GVT::Instruments::makeName(instrument1->Name), instrument1);
-    store.put(GVT::Instruments::makeName(instrument2->Name), instrument2);
+    store->put(GVT::Instruments::makeName(instrument1->Name), instrument1);
+    store->put(GVT::Instruments::makeName(instrument2->Name), instrument2);
 
     auto filtered = GVT::Instruments::filter::byExchange(store, "Exchange1");
 
