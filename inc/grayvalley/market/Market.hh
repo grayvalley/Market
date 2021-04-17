@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <variant>
+#include <iterator>
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
@@ -90,13 +91,16 @@ namespace GVT {
     };
 }
 
-#include <iterator>
+
 namespace GVT::Instruments::filter {
-    static std::unique_ptr<GVT::InstrumentStore> byExchange(
-            const GVT::InstrumentStore& store, const std::string& filter) {
-        auto out = std::make_unique<GVT::InstrumentStore>();
+    static std::shared_ptr<GVT::InstrumentStore> byExchange(
+            const std::shared_ptr<GVT::InstrumentStore>& store,
+            const std::string& filter)
+            {
+        auto& src = store->items();
+        auto out = std::make_shared<GVT::InstrumentStore>();
         auto& output_map = out->items();
-        for (const auto& item : store){
+        for (const auto& item : src){
             output_map.insert(item);
         }
         return out;
@@ -135,13 +139,17 @@ namespace GVT {
     public:
         explicit MarketStore(std::string name, uint64_t id): Name(std::move(name)), Id(id) {};
     public:
-        void populate(const InstrumentStore& store){
-            for (auto & item : store){
+
+        void populate(const std::shared_ptr<GVT::InstrumentStore>& store) {
+            auto& src = store->items();
+            auto filtered = GVT::Instruments::filter::byExchange(store, Name);
+            for (auto & item : src){
                 mItems.insert(std::make_pair(item.first, std::make_shared<Market>(item.second)));
             }
         }
 
-        std::optional<ValueType> get(const KeyType& k){
+
+        std::optional<ValueType> get(const KeyType& k) {
             auto it = mItems.find(k);
             if (it == mItems.end()){
                 return std::nullopt;
