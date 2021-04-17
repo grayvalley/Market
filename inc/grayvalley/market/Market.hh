@@ -93,11 +93,25 @@ namespace GVT {
 
 
 namespace GVT::Instruments::filter {
+
     static std::shared_ptr<GVT::InstrumentStore> byExchange(
             const std::shared_ptr<GVT::InstrumentStore>& store,
             const std::string& filter)
             {
         auto& src = store->items();
+        auto out = std::make_shared<GVT::InstrumentStore>();
+        auto& output_map = out->items();
+        for (const auto& item : src){
+            output_map.insert(item);
+        }
+        return out;
+    }
+
+    static std::shared_ptr<GVT::InstrumentStore> byExchange(
+            GVT::InstrumentStore& store,
+            const std::string& filter)
+    {
+        auto& src = store.items();
         auto out = std::make_shared<GVT::InstrumentStore>();
         auto& output_map = out->items();
         for (const auto& item : src){
@@ -148,6 +162,13 @@ namespace GVT {
             }
         }
 
+        void populate(GVT::InstrumentStore& store) {
+            auto& src = store.items();
+            auto filtered = GVT::Instruments::filter::byExchange(store, Name);
+            for (auto & item : src){
+                mItems.insert(std::make_pair(item.first, std::make_shared<Market>(item.second)));
+            }
+        }
 
         std::optional<ValueType> get(const KeyType& k) {
             auto it = mItems.find(k);
