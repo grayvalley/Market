@@ -64,10 +64,14 @@ TEST(InstrumentStoreTests, TestFilter){
     store->put(GVT::Instruments::makeName(instrument1->Name), instrument1);
     store->put(GVT::Instruments::makeName(instrument2->Name), instrument2);
 
-    auto filtered = GVT::Instruments::filter::byExchange(store, "Exchange1");
+    auto filtered1 = GVT::Instruments::filter::byExchange(store, "Exchange1");
+    auto filtered2 = GVT::Instruments::filter::byExchange(store, "Exchange2");
 
-    auto inst1 = filtered->get(GVT::Instruments::makeName("Name1"));
-    ASSERT_TRUE(inst1.has_value());
+    ASSERT_TRUE(filtered1->get(GVT::Instruments::makeName("Name1")));
+    ASSERT_FALSE(filtered1->get(GVT::Instruments::makeName("Name2")));
+
+    ASSERT_FALSE(filtered2->get(GVT::Instruments::makeName("Name1")));
+    ASSERT_TRUE(filtered2->get(GVT::Instruments::makeName("Name2")));
 }
 
 TEST(MarketTests, TestConstruction){
