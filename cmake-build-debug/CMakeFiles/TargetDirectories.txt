@@ -1,0 +1,7 @@
+/home/juha/repos/market/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/juha/repos/market/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/juha/repos/market/cmake-build-debug/tests/CMakeFiles/rebuild_cache.dir
+/home/juha/repos/market/cmake-build-debug/tests/CMakeFiles/edit_cache.dir
+/home/juha/repos/market/cmake-build-debug/tests/CMakeFiles/test_market.dir
+/home/juha/repos/market/cmake-build-debug/_deps/json-build/CMakeFiles/rebuild_cache.dir
+/home/juha/repos/market/cmake-build-debug/_deps/json-build/CMakeFiles/edit_cache.dir
