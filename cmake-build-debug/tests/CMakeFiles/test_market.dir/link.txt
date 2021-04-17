@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/test_market.dir/test_market.cc.o  -o test_market  -lgtest -lgtest_main -lpthread -lcommon -llob 
