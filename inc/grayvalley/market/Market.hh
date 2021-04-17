@@ -102,7 +102,7 @@ namespace GVT::Instruments::filter {
         auto out = std::make_shared<GVT::InstrumentStore>();
         auto& output_map = out->items();
         for (const auto& item : src){
-            output_map.insert(item);
+            if (item.second->Exchange == filter){output_map.insert(item);}
         }
         return out;
     }
@@ -115,7 +115,7 @@ namespace GVT::Instruments::filter {
         auto out = std::make_shared<GVT::InstrumentStore>();
         auto& output_map = out->items();
         for (const auto& item : src){
-            output_map.insert(item);
+            if (item.second->Exchange == filter){output_map.insert(item);}
         }
         return out;
     }
