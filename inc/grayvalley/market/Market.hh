@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <variant>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 #include <grayvalley/common/Macros.hh>
@@ -14,11 +15,12 @@ namespace GVT {
     class Instrument {
     public:
         std::string Name;
+        std::string Exchange;
         uint64_t Id;
         uint64_t PriceDecimals;
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Instrument, Name, Id, PriceDecimals)
     public:
-        std::string description() const;
+        [[nodiscard]] std::string description() const;
     };
 }
 
@@ -52,7 +54,7 @@ namespace GVT {
         using KeyType   = GVT::Instruments::InstrumentId;
         using ValueType = std::shared_ptr<Instrument>;
         using StoreType = std::unordered_map<KeyType, ValueType>;
-    private:
+    protected:
         StoreType mItems;
     public:
         PREVENT_MOVE(InstrumentStore);
@@ -65,12 +67,16 @@ namespace GVT {
             mItems.insert(std::make_pair(k, v));
         }
 
-        std::optional<ValueType> get(const KeyType& k){
+        std::optional<ValueType> get(const KeyType& k) const {
             auto it = mItems.find(k);
             if (it == mItems.end()){
                 return std::nullopt;
             }
             return it->second;
+        }
+
+        StoreType& items() {
+            return mItems;
         }
 
         StoreType::const_iterator begin() const {
@@ -80,11 +86,24 @@ namespace GVT {
         StoreType::const_iterator end() const {
             return mItems.end();
         }
+
     };
 }
 
+#include <iterator>
+namespace GVT::Instruments::filter {
+    static std::unique_ptr<GVT::InstrumentStore> byExchange(
+            const GVT::InstrumentStore& store, const std::string& filter) {
+        auto out = std::make_unique<GVT::InstrumentStore>();
+        auto& output_map = out->items();
+        for (const auto& item : store){
+            output_map.insert(item);
+        }
+        return out;
+    }
+}
+
 namespace GVT {
-    class GVT::LOB::OrderBook;
     class Market {
     public:
         std::shared_ptr<GVT::Instrument> Instrument;
@@ -101,7 +120,7 @@ namespace GVT {
 
 namespace GVT {
     class MarketStore {
-        using KeyType   = GVT::Instruments::InstrumentId;
+        using KeyType = GVT::Instruments::InstrumentId;
         using ValueType = std::shared_ptr<Market>;
         using StoreType = std::unordered_map<KeyType, ValueType>;
     private:
