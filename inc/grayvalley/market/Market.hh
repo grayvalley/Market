@@ -53,30 +53,32 @@ namespace GVT::Instruments {
 namespace GVT {
     class InstrumentStore {
         using KeyType   = GVT::Instruments::InstrumentId;
-        using ValueType = std::shared_ptr<Instrument>;
+        using ValueType = GVT::Instrument;
         using StoreType = std::unordered_map<KeyType, ValueType>;
     protected:
         StoreType mItems;
     public:
-        PREVENT_MOVE(InstrumentStore);
-        PREVENT_COPY(InstrumentStore);
-    public:
         InstrumentStore() = default;
     public:
 
-        void put(const KeyType& k, const ValueType& v) {
-            mItems.insert(std::make_pair(k, v));
+        void put(KeyType k, ValueType v) {
+            mItems.insert(std::make_pair(k, std::move(v)));
         }
 
-        std::optional<ValueType> get(const KeyType& k) const {
+        std::optional<GVT::Instrument> get(const KeyType& k) const {
             auto it = mItems.find(k);
             if (it == mItems.end()){
                 return std::nullopt;
             }
+
             return it->second;
         }
 
         StoreType& items() {
+            return mItems;
+        }
+
+        const StoreType& items() const {
             return mItems;
         }
 
@@ -91,31 +93,14 @@ namespace GVT {
     };
 }
 
-
 namespace GVT::Instruments::filter {
-
-    static std::shared_ptr<GVT::InstrumentStore> byExchange(
-            const std::shared_ptr<GVT::InstrumentStore>& store,
-            const std::string& filter)
-            {
-        auto& src = store->items();
-        auto out = std::make_shared<GVT::InstrumentStore>();
-        auto& output_map = out->items();
-        for (const auto& item : src){
-            if (item.second->Exchange == filter){output_map.insert(item);}
-        }
-        return out;
-    }
-
-    static std::shared_ptr<GVT::InstrumentStore> byExchange(
-            GVT::InstrumentStore& store,
-            const std::string& filter)
-    {
+    static GVT::InstrumentStore byExchange(
+            GVT::InstrumentStore& store, const std::string& filter) {
         auto& src = store.items();
-        auto out = std::make_shared<GVT::InstrumentStore>();
-        auto& output_map = out->items();
+        GVT::InstrumentStore out;
+        auto& output_map = out.items();
         for (const auto& item : src){
-            if (item.second->Exchange == filter){output_map.insert(item);}
+            if (item.second.Exchange == filter){output_map.insert(item);}
         }
         return out;
     }
@@ -124,58 +109,42 @@ namespace GVT::Instruments::filter {
 namespace GVT {
     class Market {
     public:
-        std::shared_ptr<GVT::Instrument> Instrument;
-        std::shared_ptr<GVT::LOB::OrderBook> OrderBook;
+        GVT::Instrument Instrument;
+        GVT::LOB::OrderBook OrderBook;
     public:
-        DELETE_DEFAULT_CTOR(Market);
-        PREVENT_MOVE(Market);
-        PREVENT_COPY(Market);
-    public:
-        explicit Market(std::shared_ptr<GVT::Instrument> instrument):
-                Instrument(std::move(instrument)), OrderBook(new GVT::LOB::OrderBook()) {};
+        explicit Market(GVT::Instrument instrument):
+            Instrument(std::move(instrument)) {};
     };
 }
 
 namespace GVT {
     class MarketStore {
         using KeyType = GVT::Instruments::InstrumentId;
-        using ValueType = std::shared_ptr<Market>;
-        using StoreType = std::unordered_map<KeyType, ValueType>;
+        using StoreType = std::unordered_map<KeyType, std::unique_ptr<Market> >;
     private:
         StoreType mItems;
     public:
         const std::string Name;
         const uint64_t Id;
     public:
-        DELETE_DEFAULT_CTOR(MarketStore);
-        PREVENT_MOVE(MarketStore);
-        PREVENT_COPY(MarketStore);
-    public:
         explicit MarketStore(std::string name, uint64_t id): Name(std::move(name)), Id(id) {};
     public:
 
-        void populate(const std::shared_ptr<GVT::InstrumentStore>& store) {
-            auto& src = store->items();
+        void populate(GVT::InstrumentStore store) {
+            const auto src = store.items();
             auto filtered = GVT::Instruments::filter::byExchange(store, Name);
-            for (auto & item : src){
-                mItems.insert(std::make_pair(item.first, std::make_shared<Market>(item.second)));
+            for (auto & item : src) {
+                auto ptr = std::make_unique<Market>(item.second);
+                mItems.emplace(item.first, std::move(ptr));
             }
         }
 
-        void populate(GVT::InstrumentStore& store) {
-            auto& src = store.items();
-            auto filtered = GVT::Instruments::filter::byExchange(store, Name);
-            for (auto & item : src){
-                mItems.insert(std::make_pair(item.first, std::make_shared<Market>(item.second)));
-            }
-        }
-
-        std::optional<ValueType> get(const KeyType& k) {
+        std::optional<Market*> get(const KeyType& k) {
             auto it = mItems.find(k);
             if (it == mItems.end()){
                 return std::nullopt;
             }
-            return it->second;
+            return it->second.get();
         }
 
         StoreType::const_iterator begin() const {
