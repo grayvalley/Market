@@ -6,22 +6,6 @@
 #include <grayvalley/market/Market.hh>
 
 
-TEST(InstrumentTests, TestJSONParsing) {
-
-    // create an instrument
-    GVT::Instrument instrument = {"Name", "Exchange", 0, 2};
-
-    // conversion: instrument -> json
-    nlohmann::json j = instrument;
-
-    // conversion: json -> instrument
-    auto instrument2 = j.get<GVT::Instrument>();
-
-    ASSERT_EQ(instrument.Id, instrument2.Id);
-    ASSERT_EQ(instrument.Name, instrument2.Name);
-    ASSERT_EQ(instrument.PriceDecimals, instrument2.PriceDecimals);
-}
-
 TEST(InstrumentStoreTests, TestPutAndGet){
 
     // create an instrument
@@ -49,32 +33,6 @@ TEST(InstrumentStoreTests, TestPutAndGet){
     ASSERT_EQ(instrument.Name, val2.Name);
     ASSERT_EQ(instrument.Id, val2.Id);
 }
-
-TEST(InstrumentStoreTests, TestFilter){
-
-    // create instruments
-    auto instrument1 = GVT::Instrument{"Name1", "Exchange1", 0, 2};
-    auto instrument2 = GVT::Instrument{"Name2", "Exchange2", 1, 2};
-
-    // create instrument store
-    GVT::InstrumentStore store;
-
-    // add the instrument against name and id
-    store.put(GVT::Instruments::makeName(instrument1.Name), instrument1);
-    store.put(GVT::Instruments::makeId(instrument1.Id), instrument1);
-    store.put(GVT::Instruments::makeName(instrument2.Name), instrument2);
-    store.put(GVT::Instruments::makeId(instrument2.Id), instrument2);
-
-    auto filtered1 = GVT::Instruments::filter::byExchange(store, "Exchange1");
-    auto filtered2 = GVT::Instruments::filter::byExchange(store, "Exchange2");
-
-    ASSERT_TRUE(filtered1.get(GVT::Instruments::makeName("Name1")));
-    ASSERT_FALSE(filtered1.get(GVT::Instruments::makeName("Name2")));
-
-    ASSERT_FALSE(filtered2.get(GVT::Instruments::makeName("Name1")));
-    ASSERT_TRUE(filtered2.get(GVT::Instruments::makeName("Name2")));
-}
-
 
 TEST(MarketTests, TestConstruction){
 
