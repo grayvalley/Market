@@ -129,7 +129,8 @@ namespace GVT {
 namespace GVT {
     class MarketStore {
         using KeyType = GVT::Instruments::InstrumentId;
-        using StoreType = std::unordered_map<KeyType, Market* >;
+        using ValueType = std::unique_ptr<GVT::Market>;
+        using StoreType = std::unordered_map<KeyType, ValueType>;
     private:
         StoreType mItems;
     public:
@@ -140,11 +141,10 @@ namespace GVT {
     public:
 
         void populate(const GVT::InstrumentStore& store) {
-
             for (auto & item : store) {
                 if (item.second.Exchange == Name) {
-                    auto ptr = new Market(item.second);
-                    mItems.emplace(item.first, ptr);
+                    auto ptr = std::make_unique<GVT::Market>(item.second);
+                    mItems.emplace(item.first, std::move(ptr));
                 }
             }
         }
@@ -154,7 +154,7 @@ namespace GVT {
             if (it == mItems.end()){
                 return std::nullopt;
             }
-            return it->second;
+            return it->second.get();
         }
 
         StoreType::const_iterator begin() const {
