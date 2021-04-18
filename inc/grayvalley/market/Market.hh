@@ -19,7 +19,20 @@ namespace GVT {
         std::string Exchange;
         uint64_t Id;
         uint64_t PriceDecimals;
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Instrument, Name, Id, PriceDecimals)
+    public:
+
+        Instrument() = default;
+
+        Instrument(std::string name, std::string exchange, uint64_t id, uint64_t decimals):
+            Name{name}, Exchange{exchange}, Id{id}, PriceDecimals{decimals} {}
+
+        Instrument(const Instrument& other) {
+            Name = other.Name;
+            Exchange = other.Exchange;
+            Id = other.Id;
+            PriceDecimals = other.PriceDecimals;
+        }
+
     public:
         [[nodiscard]] std::string description() const;
     };
@@ -52,13 +65,21 @@ namespace GVT::Instruments {
 
 namespace GVT {
     class InstrumentStore {
-        using KeyType   = GVT::Instruments::InstrumentId;
+        using KeyType = GVT::Instruments::InstrumentId;
         using ValueType = GVT::Instrument;
         using StoreType = std::unordered_map<KeyType, ValueType>;
     protected:
         StoreType mItems;
     public:
+
         InstrumentStore() = default;
+
+        InstrumentStore(const InstrumentStore& other) {
+            for (const auto & item : other.mItems) {
+                mItems.insert(item);
+            }
+        }
+
     public:
 
         void put(KeyType k, ValueType v) {
@@ -66,7 +87,9 @@ namespace GVT {
         }
 
         std::optional<GVT::Instrument> get(const KeyType& k) const {
+
             auto it = mItems.find(k);
+
             if (it == mItems.end()){
                 return std::nullopt;
             }
@@ -93,34 +116,20 @@ namespace GVT {
     };
 }
 
-namespace GVT::Instruments::filter {
-    static GVT::InstrumentStore byExchange(
-            GVT::InstrumentStore& store, const std::string& filter) {
-        auto& src = store.items();
-        GVT::InstrumentStore out;
-        auto& output_map = out.items();
-        for (const auto& item : src){
-            if (item.second.Exchange == filter){output_map.insert(item);}
-        }
-        return out;
-    }
-}
-
 namespace GVT {
     class Market {
     public:
         GVT::Instrument Instrument;
         GVT::LOB::OrderBook OrderBook;
     public:
-        explicit Market(GVT::Instrument instrument):
-            Instrument(std::move(instrument)) {};
+        explicit Market(GVT::Instrument instrument) : Instrument(instrument) {};
     };
 }
 
 namespace GVT {
     class MarketStore {
         using KeyType = GVT::Instruments::InstrumentId;
-        using StoreType = std::unordered_map<KeyType, std::unique_ptr<Market> >;
+        using StoreType = std::unordered_map<KeyType, Market* >;
     private:
         StoreType mItems;
     public:
@@ -130,12 +139,13 @@ namespace GVT {
         explicit MarketStore(std::string name, uint64_t id): Name(std::move(name)), Id(id) {};
     public:
 
-        void populate(GVT::InstrumentStore store) {
-            const auto src = store.items();
-            auto filtered = GVT::Instruments::filter::byExchange(store, Name);
-            for (auto & item : src) {
-                auto ptr = std::make_unique<Market>(item.second);
-                mItems.emplace(item.first, std::move(ptr));
+        void populate(const GVT::InstrumentStore& store) {
+
+            for (auto & item : store) {
+                if (item.second.Exchange == Name) {
+                    auto ptr = new Market(item.second);
+                    mItems.emplace(item.first, ptr);
+                }
             }
         }
 
@@ -144,7 +154,7 @@ namespace GVT {
             if (it == mItems.end()){
                 return std::nullopt;
             }
-            return it->second.get();
+            return it->second;
         }
 
         StoreType::const_iterator begin() const {
