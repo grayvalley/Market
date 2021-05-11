@@ -4,21 +4,21 @@
 #include <map>
 #include <memory>
 #include <variant>
+#include <fstream>
 #include <iterator>
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
 #include <grayvalley/common/Macros.hh>
 #include <grayvalley/lob/MBOOrderBook.hh>
+#include <grayvalley/websocket/WebSocketSession.hh>
 
 
 namespace GVT {
-
     struct Instrument {
         std::string symbol;
         uint64_t decimals;
     };
-
     void from_json(const nlohmann::json& j, Instrument& inst) {
         j.at("symbol").get_to(inst.symbol);
         j.at("price-decimals").get_to(inst.decimals);
@@ -132,5 +132,133 @@ namespace GVT {
     };
 }
 
+
+namespace GVT {
+    class ISettings {
+    protected:
+        nlohmann::json read_json(const std::string &file_path) {
+            nlohmann::json json_file;
+            std::ifstream config_file(file_path);
+            config_file >> json_file;
+            return json_file;
+        };
+    };
+}
+
+namespace GVT::MarketData {
+    class Settings : protected ISettings {
+    private:
+        std::map<std::string, GVT::Exchange> m_exchanges;
+    public:
+        void add_exchange(const GVT::Exchange &exchange) {
+            m_exchanges[exchange.name] = exchange;
+        }
+        void from(const std::string &file_path);
+        void from(const nlohmann::json& json_file);
+    };
+}
+
+namespace GVT::MarketData {
+    void Settings::from(const std::string &file_path) {
+        auto json_file = read_json(file_path);
+        from(json_file);
+    }
+}
+
+namespace GVT::MarketData {
+    void Settings::from(const nlohmann::json& json_file) {
+        auto exchanges = json_file["exchanges"];
+        for (auto & item : exchanges){
+            auto exchange = item.get<GVT::Exchange>();
+            add_exchange(exchange);
+        }
+    }
+}
+
+namespace GVT::Trading {
+    struct InstrumentRiskLimit {
+        std::string symbol;
+        int64_t     quoted_size;
+        int64_t     max_long;
+        int64_t     max_short;
+    };
+    void from_json(const nlohmann::json& j, InstrumentRiskLimit& exchange) {
+        j.at("symbol").get_to(exchange.symbol);
+        j.at("quoted-size").get_to(exchange.quoted_size);
+        j.at("max-long").get_to(exchange.max_long);
+        j.at("max-short").get_to(exchange.max_short);
+    }
+}
+
+namespace GVT::Trading {
+    struct ExchangeRiskLimits {
+        std::string exchange;
+        std::map<std::string, GVT::Trading::InstrumentRiskLimit> instruments;
+    };
+    void from_json(const nlohmann::json& j, ExchangeRiskLimits& exchange) {
+        j.at("exchange").get_to(exchange.exchange);
+        for (auto & item : j.at("instruments")){
+            auto instrument_limit = item.get<GVT::Trading::InstrumentRiskLimit>();
+            exchange.instruments[instrument_limit.symbol] = instrument_limit;
+        }
+    }
+}
+
+namespace GVT::Trading {
+    class RiskSettings : protected ISettings {
+    private:
+        std::map<std::string, GVT::Trading::ExchangeRiskLimits> m_risk_limits;
+    public:
+        void add_risk_limit(const GVT::Trading::ExchangeRiskLimits& limit){
+            m_risk_limits[limit.exchange] = limit;
+        }
+        void from(const std::string &file_path);
+        void from(const nlohmann::json &json_file);
+    };
+}
+
+namespace GVT::Trading {
+    void RiskSettings::from(const std::string &file_path) {
+        auto json_file = read_json(file_path);
+        read_json(json_file);
+    }
+}
+
+namespace GVT::Trading {
+    void RiskSettings::from(const nlohmann::json &json_file) {
+        for (auto & exchange : json_file){
+            auto risk_limit = exchange.get<GVT::Trading::ExchangeRiskLimits>();
+            add_risk_limit(risk_limit);
+        }
+    }
+}
+
+
+namespace GVT::Trading {
+    class MarketMakerSettings : protected ISettings {
+    public:
+        int trader_id;
+        GVT::Trading::RiskSettings risk_settings;
+    public:
+        void from(const std::string &file_path);
+        void from(const nlohmann::json &file_path);
+    };
+}
+
+namespace GVT::Trading {
+    void MarketMakerSettings::from(const std::string &file_path) {
+        auto json_file = read_json(file_path);
+        from(json_file);
+    }
+}
+
+namespace GVT::Trading {
+    void MarketMakerSettings::from(const nlohmann::json &json_file) {
+        for (auto & exchange : json_file){
+            auto risk_limit = exchange.get<GVT::Trading::ExchangeRiskLimits>();
+            //add_risk_limit(risk_limit);
+        }
+    }
+}
 
 #endif //GVT_MARKET_HH
