@@ -13,7 +13,6 @@
 #include <grayvalley/lob/MBOOrderBook.hh>
 #include <grayvalley/websocket/WebSocketSession.hh>
 
-
 namespace GVT {
     struct Instrument {
         std::string symbol;
@@ -24,8 +23,6 @@ namespace GVT {
         j.at("price-decimals").get_to(inst.decimals);
     }
 }
-
-
 
 namespace GVT {
     class InstrumentStore {
@@ -132,7 +129,6 @@ namespace GVT {
     };
 }
 
-
 namespace GVT {
     class ISettings {
     protected:
@@ -150,8 +146,11 @@ namespace GVT::MarketData {
     private:
         std::map<std::string, GVT::Exchange> m_exchanges;
     public:
-        void add_exchange(const GVT::Exchange &exchange) {
+        void add(const GVT::Exchange &exchange) {
             m_exchanges[exchange.name] = exchange;
+        }
+        GVT::Exchange& get(const std::string& exchange){
+            return m_exchanges.at(exchange);
         }
         void from(const std::string &file_path);
         void from(const nlohmann::json& json_file);
@@ -170,7 +169,7 @@ namespace GVT::MarketData {
         auto exchanges = json_file["exchanges"];
         for (auto & item : exchanges){
             auto exchange = item.get<GVT::Exchange>();
-            add_exchange(exchange);
+            add(exchange);
         }
     }
 }
@@ -226,22 +225,22 @@ namespace GVT::Trading {
 
 namespace GVT::Trading {
     void RiskSettings::from(const nlohmann::json &json_file) {
-        for (auto & exchange : json_file){
+        for (auto & exchange : json_file["risk-limits"]){
             auto risk_limit = exchange.get<GVT::Trading::ExchangeRiskLimits>();
             add_risk_limit(risk_limit);
         }
     }
 }
 
-
 namespace GVT::Trading {
     class MarketMakerSettings : protected ISettings {
     public:
-        int trader_id;
+        uint64_t trader_id;
+        uint64_t oms_id;
         GVT::Trading::RiskSettings risk_settings;
     public:
         void from(const std::string &file_path);
-        void from(const nlohmann::json &file_path);
+        void from(const nlohmann::json &json_file);
     };
 }
 
@@ -254,10 +253,33 @@ namespace GVT::Trading {
 
 namespace GVT::Trading {
     void MarketMakerSettings::from(const nlohmann::json &json_file) {
-        for (auto & exchange : json_file){
-            auto risk_limit = exchange.get<GVT::Trading::ExchangeRiskLimits>();
-            //add_risk_limit(risk_limit);
-        }
+        json_file.at("trader-id").get_to(trader_id);
+        json_file.at("oms-id").get_to(oms_id);
+        risk_settings.from(json_file);
+    }
+}
+
+
+namespace GVT::Trading {
+    class OrderExecutionEngineSettings : protected ISettings {
+    public:
+        uint64_t id;
+    public:
+        void from(const std::string &file_path);
+        void from(const nlohmann::json &json_file);
+    };
+}
+
+namespace GVT::Trading {
+    void OrderExecutionEngineSettings::from(const std::string &file_path) {
+        auto json_file = read_json(file_path);
+        from(json_file);
+    }
+}
+
+namespace GVT::Trading {
+    void OrderExecutionEngineSettings::from(const nlohmann::json &json_file) {
+        json_file.at("oms-id").get_to(id);
     }
 }
 
