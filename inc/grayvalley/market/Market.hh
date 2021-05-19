@@ -13,14 +13,17 @@
 #include <grayvalley/lob/MBOOrderBook.hh>
 #include <grayvalley/websocket/WebSocketSession.hh>
 
+
 namespace GVT {
     struct Instrument {
         std::string symbol;
-        uint64_t decimals;
+        int64_t decimals;
+        int64_t tick_size;
     };
     void from_json(const nlohmann::json& j, Instrument& inst) {
         j.at("symbol").get_to(inst.symbol);
         j.at("price-decimals").get_to(inst.decimals);
+        j.at("tick-size").get_to(inst.tick_size);
     }
 }
 
@@ -28,39 +31,35 @@ namespace GVT {
     class InstrumentStore {
         using StoreType = std::unordered_map<std::string, GVT::Instrument>;
     protected:
-        StoreType mItems;
+        StoreType m_instruments;
     public:
         InstrumentStore() = default;
         InstrumentStore(const InstrumentStore& other) {
-            for (const auto & item : other.mItems) {
-                mItems.insert(item);
+            for (const auto & item : other.m_instruments) {
+                m_instruments.insert(item);
             }
         }
     public:
         void put(const std::string& key, GVT::Instrument value) {
-            mItems.insert(std::make_pair(key, std::move(value)));
+            m_instruments.insert(std::make_pair(key, std::move(value)));
         }
         void put(GVT::Instrument instrument) {
-            mItems.insert(std::make_pair(instrument.symbol, std::move(instrument)));
+            m_instruments.insert(std::make_pair(instrument.symbol, std::move(instrument)));
         }
-        std::optional<GVT::Instrument> get(const std::string& key) const {
-            auto it = mItems.find(key);
-            if (it == mItems.end()){
-                return std::nullopt;
-            }
-            return it->second;
+        const GVT::Instrument& get(const std::string& key) const {
+            return m_instruments.at(key);
         }
         StoreType& items() {
-            return mItems;
+            return m_instruments;
         }
         const StoreType& items() const {
-            return mItems;
+            return m_instruments;
         }
         StoreType::const_iterator begin() const {
-            return mItems.begin();
+            return m_instruments.begin();
         }
         StoreType::const_iterator end() const {
-            return mItems.end();
+            return m_instruments.end();
         }
     };
 
@@ -73,7 +72,6 @@ namespace GVT {
 }
 
 namespace GVT {
-
     struct Exchange {
         std::string name;
         GVT::InstrumentStore instruments;
@@ -113,6 +111,7 @@ namespace GVT {
 
         void populate(const GVT::InstrumentStore& instruments) {
             for (auto & item : instruments) {
+                // maybe value
                 auto ptr = std::make_unique<GVT::Market<OrderBookType>>(item.second);
                 m_store.emplace(item.first, std::move(ptr));
 
@@ -192,6 +191,7 @@ namespace GVT::Trading {
 namespace GVT::Trading {
     struct ExchangeRiskLimits {
         std::string exchange;
+        // why not instrument store
         std::map<std::string, GVT::Trading::InstrumentRiskLimit> instruments;
     };
     void from_json(const nlohmann::json& j, ExchangeRiskLimits& exchange) {
@@ -210,6 +210,9 @@ namespace GVT::Trading {
     public:
         void add_risk_limit(const GVT::Trading::ExchangeRiskLimits& limit){
             m_risk_limits[limit.exchange] = limit;
+        }
+        GVT::Trading::ExchangeRiskLimits& get_risk_limit(const std::string& exchange){
+            return m_risk_limits.at(exchange);
         }
         void from(const std::string &file_path);
         void from(const nlohmann::json &json_file);
